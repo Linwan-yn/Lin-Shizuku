@@ -12,9 +12,9 @@
 - 各版本 APK 签名一致，**覆盖安装**即可升级
 - 安装后首次使用请开启无线调试并配对（详见 README「安装说明」）
 
-## 如需构建或合作
+## 源码与构建
 
-- 请在 [Issue](https://github.com/Linwan-yn/Lin-Shizuku/issues) 中说明用途与需求
+- 本仓库不提供源码级构建入口，APK 请从 [Releases](https://github.com/Linwan-yn/Lin-Shizuku/releases) 下载
 - 源码公开计划、授权方式后续如有更新，将同步更新本页
 
 ## 常见疑问
