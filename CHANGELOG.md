@@ -142,18 +142,6 @@
 
 ---
 
-## 贡献
-
-欢迎通过以下方式参与项目：
-- 报告 bug（[Open Issue](https://github.com/Linwan-yn/Lin-Shizuku/issues)）
-- 提出功能建议
-- 参与翻译
-- 改进文档
-
-详见 [贡献指南](#) （如果有的话）
-
----
-
 ## 历史版本下载
 
 所有历史版本都可以在 [Release 页面](https://github.com/Linwan-yn/Lin-Shizuku/releases) 找到。
