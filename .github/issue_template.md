@@ -47,7 +47,7 @@ assignees: ''
 
 ```bash
 # 使用 ADB 获取日志
-adb logcat com.linwan.lin_shizuku > logcat.txt
+adb logcat moe.shizuku.privileged.api > logcat.txt
 
 # 或在应用中导出日志（如果支持）
 ```
