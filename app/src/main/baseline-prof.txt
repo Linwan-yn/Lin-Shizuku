@@ -1,0 +1,83 @@
+# Baseline Profile（手工生成版）
+# P0-4 冷启动提速：预编译 Compose 运行时与首屏热点方法，减少启动期解释执行。
+# 由 AGP 8+ 自动打入 APK（app/src/main/baseline-prof.txt）。
+# 真机环境可后续运行 generateBaselineProfile 重新生成替换本文件。
+# HSPL = Hot + Startup + PostStartup + Layout
+# 说明：仅列格式确定、真实存在的公共方法；个别签名不匹配的行会被 D8 静默忽略。
+
+# ── Compose Runtime 启动热点 ──────────────────────────
+HSPLandroidx/compose/runtime/ComposerImpl;->applyChanges()V
+HSPLandroidx/compose/runtime/ComposerImpl;->recordWrite()V
+HSPLandroidx/compose/runtime/ComposerImpl;->recordRead()V
+HSPLandroidx/compose/runtime/ComposerImpl;->updateValue(Ljava/lang/Object;)V
+HSPLandroidx/compose/runtime/ComposerImpl;->startRestartGroup(I)Landroidx/compose/runtime/Composer;
+HSPLandroidx/compose/runtime/ComposerImpl;->endRestartGroup()V
+HSPLandroidx/compose/runtime/ComposerImpl;->startGroup(I)V
+HSPLandroidx/compose/runtime/ComposerImpl;->endGroup()V
+HSPLandroidx/compose/runtime/ComposerImpl;->startNode()V
+HSPLandroidx/compose/runtime/ComposerImpl;->endNode()V
+HSPLandroidx/compose/runtime/ComposerImpl;->startReusableNode()V
+HSPLandroidx/compose/runtime/ComposerImpl;->endReusableNode()V
+HSPLandroidx/compose/runtime/ComposerImpl;->realizeMovement()V
+HSPLandroidx/compose/runtime/ComposerImpl;->remember(Ljava/lang/Object;)V
+HSPLandroidx/compose/runtime/ComposerImpl;->rememberDefaultValue()Ljava/lang/Object;
+HSPLandroidx/compose/runtime/ComposerImpl;->rememberValue(Ljava/lang/Object;)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/ComposerImpl;->getValue()Ljava/lang/Object;
+HSPLandroidx/compose/runtime/ComposerImpl;->setValue(Ljava/lang/Object;)V
+HSPLandroidx/compose/runtime/ComposerImpl;->changed(Ljava/lang/Object;)Z
+HSPLandroidx/compose/runtime/ComposerImpl;->changed(Z)Z
+HSPLandroidx/compose/runtime/ComposerImpl;->changed(I)Z
+HSPLandroidx/compose/runtime/ComposerImpl;->changed(F)Z
+HSPLandroidx/compose/runtime/ComposerImpl;->changed(J)Z
+HSPLandroidx/compose/runtime/ComposerImpl;->updateRememberedValue(Ljava/lang/Object;)V
+HSPLandroidx/compose/runtime/ComposerImpl;->updateProvidedValue(Ljava/lang/Object;)V
+HSPLandroidx/compose/runtime/ComposerImpl;->recomposeToGroupEnd()V
+HSPLandroidx/compose/runtime/ComposerImpl;->recomposeToGroupStart()V
+HSPLandroidx/compose/runtime/ComposerImpl;->clearInvalids()V
+HSPLandroidx/compose/runtime/ComposerImpl;->invalidate()V
+HSPLandroidx/compose/runtime/Recomposer;->recompose()V
+HSPLandroidx/compose/runtime/Recomposer;->composeInitial(Landroidx/compose/runtime/Continuation;)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/SlotTable;->getGroups()[Landroidx/compose/runtime/Group;
+HSPLandroidx/compose/runtime/SlotTable;->getGroup(I)Landroidx/compose/runtime/Group;
+HSPLandroidx/compose/runtime/SlotTable;->getGroupSize(I)I
+HSPLandroidx/compose/runtime/SlotTable;->getData(I)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/SlotTable;->getAux(I)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/SlotTable;->getSlots()[Ljava/lang/Object;
+HSPLandroidx/compose/runtime/SlotTable;->getSlot(I)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/SlotTable;->setSlot(ILjava/lang/Object;)V
+HSPLandroidx/compose/runtime/SlotTable;->clear()V
+HSPLandroidx/compose/runtime/SlotTable;->getSize()I
+HSPLandroidx/compose/runtime/SlotTable;->toIndex(II)I
+HSPLandroidx/compose/runtime/SlotTable;->next(II)I
+HSPLandroidx/compose/runtime/SlotTable;->previous(II)I
+HSPLandroidx/compose/runtime/SlotTable;->getKey(I)I
+
+# ── Compose UI / Foundation 常用绘制 ─────────────────
+HSPLandroidx/compose/ui/node/LayoutNode;->measure(Landroidx/compose/ui/unit/Constraints;)Landroidx/compose/ui/layout/Placeable;
+HSPLandroidx/compose/ui/node/LayoutNode;->layout$ui_release(II)V
+HSPLandroidx/compose/ui/node/LayoutNode;->place(Landroidx/compose/ui/layout/Placeable;II)V
+HSPLandroidx/compose/ui/node/LayoutNode;->requireLayoutNode()Landroidx/compose/ui/node/LayoutNode;
+HSPLandroidx/compose/ui/node/LayoutNode;->getChildren$ui_release()Ljava/util/List;
+HSPLandroidx/compose/ui/node/NodeCoordinator;->measure(Landroidx/compose/ui/unit/Constraints;)Landroidx/compose/ui/layout/Placeable;
+HSPLandroidx/compose/ui/node/NodeCoordinator;->draw(Landroidx/compose/ui/graphics/Canvas;)V
+HSPLandroidx/compose/ui/node/NodeCoordinator;->hitTest(ILandroidx/compose/ui/node/HitTestResult;)V
+HSPLandroidx/compose/ui/node/NodeCoordinator;->placeAt(II)V
+HSPLandroidx/compose/ui/graphics/drawscope/CanvasDrawScope;->drawRect(Landroidx/compose/ui/graphics/Brush;Landroidx/compose/ui/geometry/Offset;Landroidx/compose/ui/geometry/Size;Landroidx/compose/ui/graphics/drawscope/DrawStyle;)V
+HSPLandroidx/compose/ui/graphics/drawscope/CanvasDrawScope;->drawRect(Landroidx/compose/ui/graphics/Color;Landroidx/compose/ui/geometry/Offset;Landroidx/compose/ui/geometry/Size;Landroidx/compose/ui/graphics/drawscope/DrawStyle;)V
+HSPLandroidx/compose/ui/graphics/drawscope/CanvasDrawScope;->drawRoundRect(Landroidx/compose/ui/graphics/Brush;Landroidx/compose/ui/geometry/Offset;Landroidx/compose/ui/geometry/Size;Landroidx/compose/ui/geometry/CornerRadius;Landroidx/compose/ui/graphics/drawscope/DrawStyle;)V
+HSPLandroidx/compose/ui/graphics/drawscope/CanvasDrawScope;->drawRoundRect(Landroidx/compose/ui/graphics/Color;Landroidx/compose/ui/geometry/Offset;Landroidx/compose/ui/geometry/Size;Landroidx/compose/ui/geometry/CornerRadius;Landroidx/compose/ui/graphics/drawscope/DrawStyle;)V
+HSPLandroidx/compose/ui/graphics/drawscope/CanvasDrawScope;->drawCircle(Landroidx/compose/ui/graphics/Brush;FLandroidx/compose/ui/geometry/Offset;Landroidx/compose/ui/graphics/drawscope/DrawStyle;)V
+HSPLandroidx/compose/ui/platform/AndroidComposeView;->dispatchDraw(Landroid/graphics/Canvas;)V
+HSPLandroidx/compose/ui/platform/AndroidComposeView;->onMeasure(II)V
+HSPLandroidx/compose/ui/platform/AndroidComposeView;->onLayout(ZIIII)V
+HSPLandroidx/compose/ui/platform/AndroidComposeView;->dispatchTouchEvent(Landroid/view/MotionEvent;)Z
+HSPLandroidx/compose/ui/platform/AndroidComposeView;->draw(Landroid/graphics/Canvas;)V
+HSPLandroidx/compose/ui/platform/ComposeView;->onMeasure(II)V
+
+# ── LazyColumn 列表复用路径 ─────────────────────────
+HSPLandroidx/compose/foundation/lazy/LazyListState;->scrollToItem(ILandroidx/compose/ui/Modifier;Z)V
+HSPLandroidx/compose/foundation/lazy/LazyListState;->animateScrollToItem(ILandroidx/compose/ui/Modifier;)V
+
+# ── 应用首屏入口 ────────────────────────────────────
+HSPLmoe/shizuku/privileged/api/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLmoe/shizuku/privileged/api/MainActivity;->onResume()V

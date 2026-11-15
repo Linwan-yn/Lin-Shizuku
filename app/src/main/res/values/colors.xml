@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 浅色模式：启动窗口背景与应用浅色 UI 背景一致，避免启动白屏与首帧跳变 -->
+    <color name="window_bg_light">#FFF7F9FC</color>
+    <!-- 深色模式：与 DeepColors.background(#FF1A1C1E) 一致 -->
+    <color name="window_bg_dark">#FF1A1C1E</color>
+</resources>

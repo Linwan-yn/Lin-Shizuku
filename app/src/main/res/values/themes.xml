@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LinShizuku" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <!-- 启动窗口背景 = 应用浅色 UI 背景，消除首帧前的白屏跳变 -->
+        <item name="android:windowBackground">@color/window_bg_light</item>
+        <!-- Android 12+ 系统 SplashScreen 背景（API 31+，低版本自动忽略） -->
+        <item name="android:windowSplashScreenBackground">@color/window_bg_light</item>
+    </style>
+</resources>

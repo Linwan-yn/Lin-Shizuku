@@ -1,0 +1,19 @@
+package lin.server.communication
+
+import android.os.Binder
+import lin.server.util.UserHandleCompat.getUserId
+
+data class CallerContext(
+    val uid: Int,
+    val pid: Int,
+    val packageName: String? = null
+) {
+    val userId: Int = getUserId(uid)
+
+    companion object {
+        fun fromBinder() = CallerContext(
+            uid = Binder.getCallingUid(),
+            pid = Binder.getCallingPid()
+        )
+    }
+}

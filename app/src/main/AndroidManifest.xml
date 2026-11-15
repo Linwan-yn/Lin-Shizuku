@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- v4.6：删除 uses-sdk 残留（原 targetSdkVersion="34"）——targetSdk 唯一由
+         app/build.gradle.kts 的 targetSdk=37 控制。Android 16 本地网络保护（LNP）：
+         应用（targetSdk≥35）声明 ACCESS_LOCAL_NETWORK（普通权限安装即授予）即豁免
+         「选择要连接的设备」弹窗；残留的 34 会使旧版在 Android 16 上弹 LNP 确认框
+         （红米/小米/iQOO 用户实测反馈），新版 202704+（targetSdk 37）已不再弹。 -->
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- v4.3：AdbPairingService 改 connectedDevice 类型（配对=连接设备，可长时间等待用户输码，
+         不再受 shortService ~30 秒超时强杀；普通权限，低版本系统自动忽略） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="moe.shizuku.manager.permission.MANAGER" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Android 13+：mDNS 扫描配对服务需要附近 Wi-Fi 设备权限 -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:ignore="CoarseFineLocation" />
+    <!-- Android 17 (API 37+)：本地网络权限，mDNS 服务发现/多播需要 -->
+    <uses-permission
+        android:name="android.permission.ACCESS_LOCAL_NETWORK"
+        android:maxSdkVersion="99"
+        tools:ignore="NearbyDevicesRuntimePermissions" />
+    <!-- mDNS 组播需要 -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 1.0.11：修改系统设置权限（WRITE_SETTINGS）——用于自动修改屏幕休眠/亮度等系统设置 -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="HardwareIds" />
+    <!-- 1.1.2（必须声明）：WRITE_SECURE_SETTINGS——「关闭 USB 调试 / 关闭无线调试 /
+         关闭开发者选项」这类系统开关依赖该权限。权限未在清单声明时 pm grant 无法授予
+         （命令可能仍返回 0，但权限始终 DENIED），这就是"启动了仍显示未授予"的原因。 -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- 1.1.2（T6 心跳升级）：强力保活精确闹钟（setExactAndAllowWhileIdle）——
+         USE_EXACT_ALARM 声明即授予（分支应用非 Play 分发，无政策限制），
+         Doze 深度休眠下心跳不再被大幅推迟 -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- 77 轮：移除 NEARBY_WIFI_DEVICES / BLUETOOTH_SCAN 声明——配对发现走 NSD（无需 nearby 权限），
+         避免 Android 15+/17 上申请该权限触发系统「选择要连接的设备」对话框转圈卡死。 -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+
+    <permission-group
+        android:name="moe.shizuku.manager.permission-group.API"
+        android:label="@string/app_name" />
+
+    <permission
+        android:name="moe.shizuku.manager.permission.MANAGER"
+        android:protectionLevel="signature" />
+
+    <permission
+        android:name="moe.shizuku.manager.permission.API_V23"
+        android:protectionLevel="dangerous"
+        android:permissionGroup="moe.shizuku.manager.permission-group.API" />
+
+    <permission
+        android:name="moe.shizuku.privileged.api.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="moe.shizuku.privileged.api.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+
+    <!-- P3-3 修复：allowBackup=false——prefs 含配对码/授权状态等敏感数据，
+         禁止随系统备份导出（adb backup / 云备份），降低凭据泄漏面 -->
+    <application
+        android:name=".core.ShizukuApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LinShizuku">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.browser.BrowserActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.modules.ScriptEditActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.modules.OutputActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <!-- 模块/脚本日志查看页（66 轮：安装与执行日志查看、保存、删除） -->
+        <activity
+            android:name=".ui.modules.ModuleLogActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.settings.ServerLogActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.settings.StorageActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.settings.AboutActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.settings.VersionDetailActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.settings.StorageCleanupActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <activity
+            android:name=".ui.settings.OpenSourceActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
+
+        <!-- 授权请求弹窗：Shizuku 兼容应用首次申请使用 Shizuku 时由官方 server 启动 -->
+        <activity
+            android:name=".ui.auth.RequestPermissionActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation">
+            <intent-filter>
+                <action android:name="moe.shizuku.privileged.api.intent.action.REQUEST_PERMISSION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- 权限请求通知接收器：收到服务端广播后弹通知提醒用户 -->
+        <receiver
+            android:name=".ui.auth.PermissionRequestReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="lin.shizuku.NOTIFY_PERMISSION_REQUEST" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".core.EngineService"
+            android:permission="moe.shizuku.manager.permission.API_V23"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="moe.shizuku.privileged.api.api.EngineService" />
+            </intent-filter>
+        </service>
+
+        <provider
+            android:name=".core.LinShizukuProvider"
+            android:authorities="moe.shizuku.privileged.api.shizuku;moe.shizuku.manager.shizuku"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <!-- Lin-Shizuku 生态 provider：Lin server（app_process）经此发送 Binder / 读写配置 / 上传日志 -->
+        <provider
+            android:name="lin.manager.LinManagerProvider"
+            android:authorities="moe.shizuku.privileged.api.lin"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <receiver
+            android:name=".core.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Shizuku 兼容 Receiver：rish 模式应用（Scene 等）通过此广播检测 Shizuku 并获取 Binder -->
+        <receiver
+            android:name=".core.ShizukuReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="rikka.shizuku.intent.action.REQUEST_BINDER" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Shizuku 兼容 Activity：广播被拦截时，rish 模式应用降级为启动 Activity 请求 Binder -->
+        <activity
+            android:name=".core.ShellRequestHandlerActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="rikka.shizuku.intent.action.REQUEST_BINDER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- 公平运行内存机制（金标联盟 ITGSA）：内存预警 / 应用查杀 -->
+        <receiver
+            android:name=".core.FairMemoryReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="itgsa.intent.action.TRIM" />
+                <action android:name="itgsa.intent.action.KILL" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 应用打开触发前台服务 -->
+        <service
+            android:name=".core.AppTriggerService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="monitor_app_launch" />
+        </service>
+
+        <!-- 强力保活前台服务（76 轮）：闹钟心跳 + 息屏检测 + 划任务复活 -->
+        <service
+            android:name=".core.StrongKeepAliveService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="keep_alive_heartbeat" />
+        </service>
+
+        <!-- 进程守护服务（A4/90n 实现）：独立 :guard 进程，双进程互守（服务端重启 + 主进程拉起） -->
+        <service
+            android:name=".core.GuardService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":guard"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="dual_process_guard" />
+        </service>
+
+        <!-- 强力保活心跳广播接收器（76 轮）：周期检查并自动恢复服务 -->
+        <receiver
+            android:name=".core.StrongKeepAliveReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- 无障碍服务（自启/保活） -->
+        <service
+            android:name=".core.LinAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/lin_accessibility_config" />
+        </service>
+
+                <!-- 77 轮：Android 14+ 前台服务类型。1.1.1 v4.3：shortService → connectedDevice——
+                     实测 HyperOS 对 shortService 仅约 30 秒超时即杀并写 ANR trace（"应用没有响应"弹窗），
+                     而配对流程需等用户输入配对码（可能超过 30 秒）；connectedDevice（连接设备）语义
+                     匹配配对场景且可长时间运行，配合 FOREGROUND_SERVICE_CONNECTED_DEVICE 权限。 -->
+                <!-- P3-3 修复：显式声明 exported=false（targetSdk 31+ 要求显式导出声明，
+                     内部配对服务不应暴露给其他应用） -->
+                <service android:name="moe.shizuku.manager.adb.AdbPairingService"
+                    android:foregroundServiceType="connectedDevice"
+                    android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

@@ -1,0 +1,27 @@
+# 签名密钥（绝对不能上传！泄露=他人可伪造你的签名APK）
+*.keystore
+*.jks
+
+# Android / Gradle 构建
+.gradle/
+.kotlin/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.DS_Store
+
+# 构建产物 APK
+*.apk
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# 内部过程记录与本地说明（含历史轮次笔记、旧 APK 校验值、本地构建说明，不入库）
+更新md/
+txt文档与md5/
+最新消息.txt
+构建说明-README.txt
+mt管理器授权超时原因与修复以及根因.md

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色模式主题：windowBackground 与应用深色 UI 背景一致（#FF1A1C1E），
+         系统 Splash → 首帧全程深色，彻底消除启动白屏 -->
+    <style name="Theme.LinShizuku" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/window_bg_dark</item>
+        <item name="android:windowSplashScreenBackground">@color/window_bg_dark</item>
+    </style>
+</resources>

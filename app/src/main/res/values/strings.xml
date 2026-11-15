@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lin-Shizuku</string>
+    <string name="accessibility_service_label">Lin-Shizuku 无障碍服务</string>
+    <string name="accessibility_service_desc">用于开机后自动唤醒 Shizuku 服务，无需手动启动。</string>
+
+    <!-- Home -->
+    <string name="home_title">Lin-Shizuku</string>
+    <string name="status_running">正在运行</string>
+    <string name="status_stopped">已停止</string>
+    <string name="status_unknown">未知</string>
+    <string name="start">启动</string>
+    <string name="stop">停止</string>
+    <string name="restart">重新启动</string>
+    <string name="authorized_apps">已授权应用</string>
+    <string name="tap_to_manage">点按以管理已授权的应用</string>
+    <string name="pair_via_adb">通过 ADB 配对</string>
+
+    <!-- Auth -->
+    <string name="authorized">已授权</string>
+    <string name="unauthorized">未授权</string>
+    <string name="all">全部</string>
+    <string name="running">运行</string>
+    <string name="asking">询问</string>
+    <string name="denying">拒绝</string>
+    <string name="allow">允许</string>
+    <string name="deny">拒绝</string>
+
+    <!-- Modules -->
+    <string name="modules">模块</string>
+    <string name="lin_modules">Lin 模块</string>
+    <string name="shell_scripts">Shell 脚本</string>
+    <string name="new_script">新建脚本</string>
+    <string name="execute">执行</string>
+    <string name="edit">编辑</string>
+    <string name="export">导出</string>
+    <string name="delete">删除</string>
+
+    <!-- Settings -->
+    <string name="settings">设置</string>
+    <string name="appearance">外观</string>
+    <string name="use_system_theme">使用系统主题颜色</string>
+    <string name="amoled_black">AMOLED 纯黑</string>
+    <string name="dark_mode">深色模式</string>
+    <string name="language">语言</string>
+    <string name="language_follow_system">跟随系统</string>
+    <string name="language_zh">简体中文</string>
+    <string name="language_en">English</string>
+    <string name="performance">性能</string>
+    <string name="high_refresh_rate">高刷新率</string>
+    <string name="high_refresh_rate_desc">强制最高刷新率（120/144/165/185/240Hz 及更高）</string>
+    <string name="privacy">隐私</string>
+    <string name="hide_from_recents">隐藏后台</string>
+    <string name="hide_from_recents_desc">从最近任务列表中隐藏</string>
+    <string name="glass_effect">液态玻璃效果</string>
+    <string name="start_on_boot">开机启动</string>
+    <string name="trusted_wlan">信任 WLAN</string>
+    <string name="about">关于</string>
+    <string name="official_docs">官方文档</string>
+    <string name="github">GitHub</string>
+    <string name="contribute_translation">参与翻译</string>
+    <string name="version">版本</string>
+
+    <!-- Pairing -->
+    <string name="pairing">配对</string>
+    <string name="pairing_code">配对码</string>
+    <string name="pairing_port">端口</string>
+    <string name="pair">配对</string>
+
+    <!-- Browser -->
+    <string name="browser">浏览器</string>
+
+    <!-- Script -->
+    <string name="script_name">脚本名称</string>
+    <string name="script_content">脚本内容</string>
+    <string name="save">保存</string>
+    <string name="output">输出</string>
+</resources>
