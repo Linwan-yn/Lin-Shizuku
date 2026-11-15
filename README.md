@@ -16,25 +16,25 @@
 原版只提供授权服务本身。Lin-Shizuku 在保留原版全部功能的基础上，加了无线调试自启、刷新率锁定、电池白名单、进程守护、内置浏览器、自动更新等系统级优化，开箱即用，不需要额外装其他工具。
 
 ## 下载与安装
-| 版本 | 发布日期 | 更新说明 | 下载 |
-| --- | --- | --- | --- |
-| v1.1.4 | 2026-11-14 | 修复 Android 17 本地网络设备选择重复弹窗；修复已知问题、优化实现逻辑 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.4) |
-| v1.1.3 | 2026-11-09 | 进一步完善功能与稳定性 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.3) |
-| v1.1.2 | 2026-11-05 | 新增一个功能卡片 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.2) |
-| v1.1.1 | 2026-10-21 | 模块推荐页新增功能；优化服务端 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.1) |
-| v1.1.0 | 2026-10-16 | 修复 MT 管理器授权超时问题 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.0) |
-| v1.0.9 | 2026-10-13 | 日志路径统一；无线调试流程重构；悬浮底栏拖拽与卡片布局优化；补充多 ROM 解决方案；修复配对误报、端口超时、通知循环、弹窗冲突 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.9) |
-| v1.0.8 | 2026-10-08 | 服务端深度优化、服务 API 升级至 1.0.2、开机启动改进、无线调试配对优化 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.8) |
-| v1.0.7 | 2026-10-05 | 终端页长输出遮挡修复 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.7) |
-| v1.0.6 | 2026-10-03 | WebUI 兼容性热修复 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.6) |
-| v1.0.5 | 2026-10-01 | 完善模块体系、优化功能逻辑 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.5) |
-| v1.0.4 | 2026-09-30 | UI 与内存优化、设置页整理 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.4) |
-| v1.0.3 | 2026-09-29 | 优化 API、新增功能 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.3) |
-| v1.0.2 | 2026-09-27 | UI 优化 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.2) |
-| v1.0.1 | 2026-09-21 | UI、功能、性能优化 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.1) |
-| v1.0.0 | 2026-09-19 | 首版发布 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.0) |
+| 版本 | 发布日期 | 下载 |
+| --- | --- | --- |
+| v1.1.4 | 2026-11-14 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.4) |
+| v1.1.3 | 2026-11-09 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.3) |
+| v1.1.2 | 2026-11-05 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.2) |
+| v1.1.1 | 2026-10-21 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.1) |
+| v1.1.0 | 2026-10-16 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.0) |
+| v1.0.9 | 2026-10-13 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.9) |
+| v1.0.8 | 2026-10-08 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.8) |
+| v1.0.7 | 2026-10-05 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.7) |
+| v1.0.6 | 2026-10-03 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.6) |
+| v1.0.5 | 2026-10-01 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.5) |
+| v1.0.4 | 2026-09-30 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.4) |
+| v1.0.3 | 2026-09-29 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.3) |
+| v1.0.2 | 2026-09-27 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.2) |
+| v1.0.1 | 2026-09-21 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.1) |
+| v1.0.0 | 2026-09-19 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.0.0) |
 
-每个版本的 APK 文件在对应的 Release 页面内，点击版本链接即可进入下载。
+各版本更新说明详见 [CHANGELOG.md](CHANGELOG.md)。
 
 ### 安装说明
 1. 下载 APK 后**直接覆盖安装**即可升级（各版本签名一致）
