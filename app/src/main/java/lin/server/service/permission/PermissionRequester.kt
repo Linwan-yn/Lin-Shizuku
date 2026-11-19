@@ -49,7 +49,7 @@ class PermissionRequester(
                 ClientRecord(uid, pid, null, pkg, 0)
             }
 
-        if (!LinApiConstants.PERMISSIONS.contains(permission)) {
+        if (!LinApiConstants.isRecognizedPermission(permission)) {
             LOGGER.w("requestPermission: 未知权限 %s, uid=%d", permission, uid)
             clientRecord.dispatchRequestPermissionResult(
                 requestCode,
@@ -59,10 +59,11 @@ class PermissionRequester(
             )
             return
         }
-        val flag = configManager.find(uid)?.permissions?.get(permission)
+        val key = LinApiConstants.normalizePermissionKey(permission)
+        val flag = configManager.find(uid)?.permissions?.get(key)
         LOGGER.d(
-            "requestPermission: uid=%d, pid=%d, permission=%s, requestCode=%d, flag=%s",
-            uid, pid, permission, requestCode, flag?.toString() ?: "null"
+            "requestPermission: uid=%d, pid=%d, permission=%s, key=%s, requestCode=%d, flag=%s",
+            uid, pid, permission, key, requestCode, flag?.toString() ?: "null"
         )
         when (flag) {
             ConfigManager.FLAG_GRANTED -> {
@@ -114,6 +115,7 @@ class PermissionRequester(
 
         val records = clientManager.findClients(requestUid)
         val packages = ArrayList<String>()
+        val key = LinApiConstants.normalizePermissionKey(permission)
 
         if (records.isEmpty()) {
             LOGGER.w("dispatchPermissionResult: 未找到 uid $requestUid 的客户端")
@@ -121,8 +123,8 @@ class PermissionRequester(
         } else {
             for (record in records) {
                 packages.add(record.packageName)
-                if (LinApiConstants.isRuntimePermission(permission)) {
-                    record.allowedMap[permission] = allowed
+                if (LinApiConstants.isRuntimePermission(key)) {
+                    record.allowedMap[key] = allowed
                 }
                 if (record.pid == requestPid) {
                     record.dispatchRequestPermissionResult(
@@ -138,7 +140,7 @@ class PermissionRequester(
         configManager.update(requestUid, packages)
         configManager.updatePermission(
             requestUid,
-            permission,
+            key,
             when {
                 onetime -> ConfigManager.FLAG_ASK
                 allowed -> ConfigManager.FLAG_GRANTED

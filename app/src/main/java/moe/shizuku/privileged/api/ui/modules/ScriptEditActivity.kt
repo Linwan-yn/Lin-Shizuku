@@ -1,6 +1,5 @@
 package moe.shizuku.privileged.api.ui.modules
 
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -49,7 +48,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import moe.shizuku.privileged.api.core.CommandTaskRegistry
+import moe.shizuku.privileged.api.core.DiagnosticLog
+import moe.shizuku.privileged.api.core.ModuleLogs
 import moe.shizuku.privileged.api.core.ModuleStore
+import moe.shizuku.privileged.api.core.Prefs
+import moe.shizuku.privileged.api.core.TaskState
 import moe.shizuku.privileged.api.ui.theme.LinShizukuTheme
 import moe.shizuku.privileged.api.util.ActivityTransitions
 import java.util.UUID
@@ -169,18 +173,45 @@ class ScriptEditActivity : ComponentActivity() {
     private fun runScript() {
         val id = scriptId ?: UUID.randomUUID().toString().take(8)
         scope.launch {
+            val content = syncMeta()
             val result = withContext(Dispatchers.IO) {
-                ModuleStore.saveScript(this@ScriptEditActivity, id, scriptName, syncMeta())
+                ModuleStore.saveScript(this@ScriptEditActivity, id, scriptName, content)
             }
             result.onFailure { e ->
                 Toast.makeText(this@ScriptEditActivity, e.message ?: "保存失败", Toast.LENGTH_SHORT).show()
                 return@launch
             }.onSuccess { newId ->
                 scriptId = newId
-                val intent = Intent(this@ScriptEditActivity, OutputActivity::class.java)
-                intent.putExtra("script_id", newId)
-                startActivity(intent)
-                ActivityTransitions.overrideForward(this@ScriptEditActivity)
+                // 方案 B：后台登记执行，输出进终端页任务面板，不再弹独立输出页
+                val identity = Prefs.execIdentity
+                val title = "运行: $scriptName"
+                val task = CommandTaskRegistry.start(title, content, "脚本", identity)
+                task.detached = true
+                CommandTaskRegistry.execute(
+                    task = task,
+                    cmd = content,
+                    identity = identity,
+                    onComplete = { t ->
+                        val outText = t.output.joinToString("\n") {
+                            if (it.isError) "[错误] ${it.text}" else it.text
+                        }.trimEnd('\n')
+                        val footer = ModuleLogs.line("──", when (t.state) {
+                            TaskState.TIMEOUT -> "结果：执行超时（5 分钟无输出）"
+                            TaskState.FAILED -> "结果：失败（退出码 ${t.exitCode ?: "未知"}）"
+                            TaskState.STOPPED -> "结果：已手动停止"
+                            else -> "结果：成功"
+                        })
+                        val logContent = ModuleLogs.line("──", "执行: $title（身份: ${identity.label}）") +
+                            "\n" + outText + "\n" + footer
+                        ModuleLogs.save(this@ScriptEditActivity, "exec_${newId}_${ModuleLogs.fileStamp()}.log", logContent)
+                        DiagnosticLog.append("[执行] $title（${identity.short}）: ${when (t.state) {
+                            TaskState.FINISHED -> "成功"; TaskState.STOPPED -> "已停止"
+                            TaskState.TIMEOUT -> "超时"; else -> "失败/超时"
+                        }}")
+                    }
+                )
+                Toast.makeText(this@ScriptEditActivity, "已在后台运行，可到终端页查看结果", Toast.LENGTH_SHORT).show()
+                finishWithTransition()
             }
         }
     }

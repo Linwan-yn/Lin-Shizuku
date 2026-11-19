@@ -49,9 +49,6 @@ object UserServiceStarter {
     private var stellarBinder: IBinder? = null
     private var clientBinder: IBinder? = null
 
-    /** 1.1.2：Application 初始化失败的完整堆栈只在首个子进程落盘一次。 */
-    private var appInitStackLogged = false
-
     @JvmStatic
     fun main(args: Array<String>) {
         // 写启动标记到 stderr.log
@@ -165,16 +162,13 @@ object UserServiceStarter {
                 // Application 初始化失败时回退到旧的 Context 方案
                 // 主要用于解决部分联发科设备上的兼容性问题
                 // 参见 RikkaApps/Shizuku Issue #1171 和 RikkaApps/Shizuku-API PR #299
-                Log.w(TAG, "无法初始化 Application，已回退到 Context: ${e.javaClass.simpleName}: ${e.message}")
-                // 1.1.2：makeApplication 传 null Instrumentation 在 Android 14+ 会命中
-                // LoadedApk.makeApplicationInner 的 NPE（平台已知行为，回退 Context 是预期路径）。
-                // 完整堆栈只在首次失败时落盘，避免每个用户服务进程重复刷同一段栈。
-                if (!appInitStackLogged) {
-                    appInitStackLogged = true
-                    logFile(TAG, "无法初始化 Application，已回退到 Context（首次失败，附堆栈）", e)
-                } else {
-                    logFile("无法初始化 Application，已回退到 Context（${e.javaClass.simpleName}: ${e.message}）")
-                }
+                // Android 14+ 传 null Instrumentation 会命中平台 makeApplicationInner 的已知 NPE，
+                // 回退 Context 是预期路径。每个独立子进程都会复现同一段反射栈，不再落盘整段
+                // 堆栈刷屏，只记一行类型/消息；完整栈仍可在 logcat 的 Log.w 中查看。
+                val cause = e.cause ?: e
+                val reason = "${cause.javaClass.simpleName}: ${cause.message}"
+                Log.w(TAG, "无法初始化 Application，已回退到 Context: $reason")
+                logFile("无法初始化 Application，已回退到 Context（$reason）")
                 application = null
             }
 

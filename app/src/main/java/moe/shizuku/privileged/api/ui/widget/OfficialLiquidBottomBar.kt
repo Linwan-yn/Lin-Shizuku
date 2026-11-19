@@ -65,7 +65,7 @@ import kotlin.math.abs
  * 对齐官方 LiquidBottomTabs：
  * - 外层左右 28dp（官方 36dp，5 个 tab 略收），避开系统导航栏
  * - 背景玻璃层 68dp，胶囊层 56dp，Capsule 大圆角
- * - 背景层所有 tab 灰色；胶囊层只放选中项蓝色内容
+ * 三层结构：整栏玻璃衬底 → 选中胶囊玻璃背景 → tap 行（最上层，图标文字直接画在玻璃之上）
  * 交互：
  * - 子项按下即有按压态放大/高亮，长按原地发光；
  * - 长按后拖拽，胶囊实时跟手，命中项同步切换；松手吸附定档。
@@ -102,7 +102,6 @@ fun OfficialLiquidBottomBar(
             val tabWidth = with(density) {
                 (constraints.maxWidth.toFloat() - 8f.dp.toPx()) / tabsCount
             }
-            val contentWidth = tabWidth * tabsCount
 
             val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
             val animationScope = rememberCoroutineScope()
@@ -120,12 +119,12 @@ fun OfficialLiquidBottomBar(
             var isDragging by remember { mutableStateOf(false) }
             var hasDragged by remember { mutableStateOf(false) }
             var dragStartX by remember { mutableFloatStateOf(0f) }
+            // 拖拽基准：长按成立时锚定的选中索引；胶囊位置 = 基准 + 手指位移增量，避免按手指绝对落点映射造成交界回跳
+            var dragBaseIndex by remember { mutableFloatStateOf(0f) }
             // 拖拽中的连续索引（未拖拽为 -1）；直接 state 驱动位置，避免每帧 launch Animatable 造成竞争/瞬闪
             var dragIndex by remember { mutableFloatStateOf(-1f) }
             val dragThresholdPx = with(density) { 12f.dp.toPx() }
 
-            // 拖拽中展示命中项，否则展示当前选中项
-            val displayIndex = if (hoverIndex >= 0) hoverIndex else currentSelected
             // 拖拽中用 state 直写的连续索引，否则用吸附动画值
             val shownOffset = if (dragIndex >= 0f) dragIndex else capsuleOffset.value
 
@@ -156,14 +155,14 @@ fun OfficialLiquidBottomBar(
                 }
             }
 
-            // 手指相对内容区的 x 换算成连续索引（LTR/RTL 对称）
-            fun indexFromX(x: Float): Float {
-                val raw = if (isLtr) x / tabWidth else (contentWidth - x) / tabWidth
+            // 手指位移增量换算成索引（LTR/RTL 对称）；胶囊从基准选中位随手指平移
+            fun deltaToIndex(dx: Float): Float {
+                val raw = (dragBaseIndex + (if (isLtr) dx else -dx) / tabWidth)
                 return raw.fastCoerceIn(0f, (tabsCount - 1).toFloat())
             }
 
-            // 第一层：背景玻璃层（所有 tab 灰色，可点击切换；整栏接收长按拖拽）
-            Row(
+            // 第一层：整栏背景玻璃（不含 tap，仅做 backdrop 衬底）
+            Box(
                 Modifier
                     .drawBackdrop(
                         backdrop = backdrop,
@@ -177,14 +176,64 @@ fun OfficialLiquidBottomBar(
                     .height(68f.dp)
                     .fillMaxWidth()
                     .padding(4f.dp)
+            )
+
+            // 第二层：选中胶囊背景（纯穿透玻璃，不含图标文字；位于 tap 层之下，不遮挡 tap）
+            Box(
+                Modifier
+                    .padding(horizontal = 4f.dp)
+                    .graphicsLayer {
+                        translationX =
+                            if (isLtr) shownOffset * tabWidth
+                            else size.width - (shownOffset + 1f) * tabWidth
+                        this.scaleX = capsuleScale
+                        this.scaleY = capsuleScale
+                    }
+                    .drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedCornerShape(28.dp) },
+                        effects = {
+                            lens(
+                                10f.dp.toPx() * pressProgress,
+                                14f.dp.toPx() * pressProgress,
+                                chromaticAberration = true
+                            )
+                        },
+                        highlight = {
+                            Highlight.Default.copy(alpha = pressProgress)
+                        },
+                        innerShadow = {
+                            InnerShadow(
+                                radius = 8f.dp * pressProgress,
+                                alpha = pressProgress
+                            )
+                        },
+                        onDrawSurface = {
+                            val surface = if (isLightTheme) Color.Black else Color.White
+                            drawRect(surface.copy(alpha = 0.06f), alpha = 1f - pressProgress)
+                            drawRect(Color.Black.copy(alpha = 0.02f * pressProgress))
+                        }
+                    )
+                    .height(56f.dp)
+                    .fillMaxWidth(1f / tabsCount)
+            )
+
+            // 第三层：tap 行（最上层，图标文字直接画在胶囊玻璃之上，清晰透出）
+            Row(
+                Modifier
+                    .height(68f.dp)
+                    .fillMaxWidth()
+                    .padding(4f.dp)
                     .pointerInput(tabsCount, tabWidth, isLtr) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = { startOffset ->
-                                // 长按成立但手指尚未移动：只锚定基准，不挪动胶囊、不切命中项
+                                // 长按成立：立即锚定到当前选中位，胶囊位置随手指位移跟手，不设阈值门禁造成跳变
                                 isDragging = true
                                 hasDragged = false
                                 dragStartX = startOffset.x
-                                dragIndex = -1f
+                                dragBaseIndex = currentSelected.toFloat()
+                                dragIndex = currentSelected.toFloat()
+                                hoverIndex = currentSelected
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                     hapticView.performHapticFeedback(
                                         HapticFeedbackConstants.LONG_PRESS
@@ -236,19 +285,20 @@ fun OfficialLiquidBottomBar(
                         ) { change, _ ->
                             change.consume()
                             val dx = change.position.x - dragStartX
-                            // 未越过拖动阈值：保持原样，不更新位置与命中项
+                            // 阈值只标记是否构成拖动（用于松手定档判断），位置每帧跟手，不在阈值处跳变
                             if (abs(dx) > dragThresholdPx) {
                                 hasDragged = true
-                                val index = indexFromX(change.position.x)
-                                dragIndex = index
-                                val hit = index.toInt().fastCoerceIn(0, tabsCount - 1)
-                                if (hit != hoverIndex) {
-                                    hoverIndex = hit
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                        hapticView.performHapticFeedback(
-                                            HapticFeedbackConstants.TEXT_HANDLE_MOVE
-                                        )
-                                    }
+                            }
+                            val index = deltaToIndex(dx)
+                            dragIndex = index
+                            // 命中按就近格取整（与松手定档口径一致），拖过半格即预览右邻，跟手切换
+                            val hit = index.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
+                            if (hit != hoverIndex) {
+                                hoverIndex = hit
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    hapticView.performHapticFeedback(
+                                        HapticFeedbackConstants.TEXT_HANDLE_MOVE
+                                    )
                                 }
                             }
                         }
@@ -256,8 +306,12 @@ fun OfficialLiquidBottomBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 items.forEachIndexed { index, item ->
+                    val selected =
+                        if (hoverIndex >= 0) index == hoverIndex else index == currentSelected
                     OfficialLiquidBottomTab(
                         item = item,
+                        selected = selected,
+                        accentColor = accentColor,
                         onClick = { onSelect(index) },
                         onPressedChange = { pressed ->
                             pressedIndex = if (pressed) index else -1
@@ -269,65 +323,6 @@ fun OfficialLiquidBottomBar(
                     )
                 }
             }
-
-            // 第二层：选中胶囊层（玻璃，里面放当前展示内容蓝色）
-            Box(
-                Modifier
-                    .padding(horizontal = 4f.dp)
-                    .graphicsLayer {
-                        translationX =
-                            if (isLtr) shownOffset * tabWidth
-                            else size.width - (shownOffset + 1f) * tabWidth
-                        this.scaleX = capsuleScale
-                        this.scaleY = capsuleScale
-                    }
-                    .drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { RoundedCornerShape(28.dp) },
-                        effects = {
-                            lens(
-                                10f.dp.toPx() * pressProgress,
-                                14f.dp.toPx() * pressProgress,
-                                chromaticAberration = true
-                            )
-                        },
-                        highlight = {
-                            Highlight.Default.copy(alpha = pressProgress)
-                        },
-                        innerShadow = {
-                            InnerShadow(
-                                radius = 8f.dp * pressProgress,
-                                alpha = pressProgress
-                            )
-                        },
-                        onDrawSurface = {
-                            val surface = if (isLightTheme) Color.Black else Color.White
-                            drawRect(surface.copy(alpha = 0.1f), alpha = 1f - pressProgress)
-                            drawRect(Color.Black.copy(alpha = 0.03f * pressProgress))
-                        }
-                    )
-                    .height(56f.dp)
-                    .fillMaxWidth(1f / tabsCount),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = items[displayIndex].icon,
-                        contentDescription = items[displayIndex].label,
-                        tint = accentColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = items[displayIndex].label,
-                        color = accentColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
         }
     }
 }
@@ -335,6 +330,8 @@ fun OfficialLiquidBottomBar(
 @Composable
 private fun RowScope.OfficialLiquidBottomTab(
     item: GlassNavItem,
+    selected: Boolean,
+    accentColor: Color,
     onClick: () -> Unit,
     onPressedChange: (Boolean) -> Unit,
     onLongPressVisualChange: (Boolean) -> Unit,
@@ -361,6 +358,7 @@ private fun RowScope.OfficialLiquidBottomTab(
     )
 
     val onSurface = MaterialTheme.colorScheme.onSurface
+    val contentColor = if (selected) accentColor else onSurface.copy(alpha = 0.8f)
     Column(
         modifier = modifier
             .fillMaxHeight()
@@ -375,14 +373,14 @@ private fun RowScope.OfficialLiquidBottomTab(
         Icon(
             imageVector = item.icon,
             contentDescription = item.label,
-            tint = onSurface.copy(alpha = 0.6f),
+            tint = contentColor,
             modifier = Modifier.size(24.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale }
         )
         Text(
             text = item.label,
-            color = onSurface.copy(alpha = 0.6f),
+            color = contentColor,
             fontSize = 11.sp,
-            fontWeight = FontWeight.Normal
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }

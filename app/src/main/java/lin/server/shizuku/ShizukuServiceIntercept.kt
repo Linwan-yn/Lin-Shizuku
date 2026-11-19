@@ -632,7 +632,11 @@ class ShizukuServiceIntercept(
         if (!isEnabled()) return
         val linFlag = ShizukuApiConstants.shizukuToLinFlag(value)
         configManager.updatePermission(uid, ShizukuApiConstants.PERMISSION_NAME, linFlag)
-        clientManager.findClients(uid).forEach { it.onetimeMap.remove(ShizukuApiConstants.PERMISSION_NAME) }
+        val granted = linFlag == ConfigManager.FLAG_GRANTED
+        clientManager.findClients(uid).forEach {
+            it.onetimeMap.remove(ShizukuApiConstants.PERMISSION_NAME)
+            it.allowedMap[ShizukuApiConstants.PERMISSION_NAME] = granted
+        }
     }
 
     fun notifyPermissionResult(uid: Int, pid: Int, requestCode: Int, allowed: Boolean) {

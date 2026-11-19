@@ -681,8 +681,8 @@ private fun MainScreen(
                 NavTarget.AUTH_APPS -> AuthAppsScreen()
                 NavTarget.PAIRING -> PairingScreen(onBack = { popSub() })
                 NavTarget.BATTERY -> BatteryScreen()
-                NavTarget.MODULES -> ModulesScreen(onEditScript = onEditScript, onSaveAsScript = onSaveAsScript)
-                NavTarget.TERMINAL -> TerminalScreen()
+                NavTarget.MODULES -> ModulesScreen(onEditScript = onEditScript)
+                NavTarget.TERMINAL -> TerminalScreen(onSaveAsScript = onSaveAsScript)
                 NavTarget.APPS -> AppsScreen()
                 NavTarget.SETTINGS -> SettingsScreen(
                     onOpenBattery = {

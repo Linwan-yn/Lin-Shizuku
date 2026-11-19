@@ -38,7 +38,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -55,6 +54,8 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -101,6 +102,8 @@ import moe.shizuku.privileged.api.core.ModuleStore
 import moe.shizuku.privileged.api.core.Prefs
 import moe.shizuku.privileged.api.core.ScriptItem
 import moe.shizuku.privileged.api.core.ShizukuManager
+import moe.shizuku.privileged.api.core.CommandTaskRegistry
+import moe.shizuku.privileged.api.core.TaskState
 import moe.shizuku.privileged.api.ui.browser.BrowserActivity
 import moe.shizuku.privileged.api.ui.widget.EmptyState
 import moe.shizuku.privileged.api.ui.widget.GlassCard
@@ -115,7 +118,7 @@ private val PlayButtonColor = Color(0xFF006064)
  * 模块页：Shell 脚本 + Lin 模块，真实数据（filesDir/modules/）与真实执行（Shizuku shell）。
  */
 @Composable
-fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> Unit) {
+fun ModulesScreen(onEditScript: (String?) -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var tab by remember { mutableIntStateOf(Prefs.modulesTab) }
@@ -123,19 +126,6 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
     var scripts by remember { mutableStateOf(emptyList<ScriptItem>()) }
     var linModules by remember { mutableStateOf(emptyList<LinModuleItem>()) }
     var loading by remember { mutableStateOf(true) }
-
-    // 执行弹窗状态
-    var execVisible by remember { mutableStateOf(false) }
-    var execTitle by remember { mutableStateOf("执行中...") }
-    var execBaseTitle by remember { mutableStateOf("执行中...") }
-    var execOutput by remember { mutableStateOf("") }
-    var execDone by remember { mutableStateOf(false) }
-    var execSuccess by remember { mutableStateOf<Boolean?>(null) } // null=执行中 true=成功 false=超时/失败
-    var execExitCode by remember { mutableStateOf<Int?>(null) }    // 66 轮：进程退出码（超时=null）
-    var execLogContent by remember { mutableStateOf("") }          // 66 轮：本次执行完整日志（自动落盘+可保存）
-    var showQuickCmd by remember { mutableStateOf(false) }
-    // 最近一次执行的命令文本：供「存为脚本」预填
-    var lastExecCmd by remember { mutableStateOf("") }
 
     // 安装弹窗状态（66 轮：安装页逐步日志 + 失败弹窗）
     var installVisible by remember { mutableStateOf(false) }
@@ -198,83 +188,53 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
     }
 
     /**
-     * 真实执行命令：流式输出到执行弹窗（每行带时间戳），空闲超时（无输出 5 分钟）才终止。
-     * 66 轮：通过退出码判定成功/失败（而非仅是否超时），执行日志自动落盘
-     * （filesDir/logs/exec_<tag>_<ts>.log），成功/失败/超时都留档，可事后精准定位报错原因。
+     * 后台执行命令（1.1.5 方案 B）：登记到全局任务注册表，输出进任务缓冲，
+     * 在终端页任务面板查看 / 停止 / 回看；模块页不再弹结果页。
+     * 执行日志自动落盘（filesDir/logs/exec_<tag>_<ts>.log），成功/失败/超时都留档。
+     * onDone 回写模块卡片结果；页面已离开时结果已持久化，回模块页 reload 刷新。
      */
-    fun runReal(title: String, cmd: String, logTag: String? = null, onDone: ((String, Int?) -> Unit)? = null) {
+    fun launchBackground(
+        title: String,
+        cmd: String,
+        source: String,
+        logTag: String? = null,
+        onDone: ((String, Int?) -> Unit)? = null
+    ) {
         if (cmd.isBlank()) return
-        lastExecCmd = cmd
-        execVisible = true
-        execDone = false
-        execSuccess = null
-        execExitCode = null
-        execBaseTitle = title
-        execTitle = title
-        execOutput = ""
-        scope.launch(Dispatchers.IO) {
-            val start = System.currentTimeMillis()
-            val identity = Prefs.execIdentity
-            val result = ShizukuManager.runCommandStreamingEx(
-                cmd,
-                identity = identity,
-                onLine = { line, isErr ->
-                    withContext(Dispatchers.Main) {
-                        execOutput += "[${ModuleLogs.tsShort()}] " + (if (isErr) "[错误] " else "") + line + "\n"
-                    }
-                },
-                timeoutMs = 300_000
-            )
-            withContext(Dispatchers.Main) {
-                execDone = true
-                execExitCode = result.exitCode
+        val identity = Prefs.execIdentity
+        val task = CommandTaskRegistry.start(title, cmd, source, identity)
+        task.detached = true
+        android.widget.Toast.makeText(ctx, "已转入后台运行，可到终端页查看", android.widget.Toast.LENGTH_SHORT).show()
+        val start = System.currentTimeMillis()
+        CommandTaskRegistry.execute(
+            task = task,
+            cmd = cmd,
+            identity = identity,
+            onComplete = { t ->
+                val state = t.state
+                val code = t.exitCode
                 val elapsedMs = System.currentTimeMillis() - start
-                val ok = result.finished && (result.exitCode == null || result.exitCode == 0)
-                execSuccess = ok
-                execTitle = when {
-                    !result.finished -> "执行超时"
-                    result.exitCode != null && result.exitCode != 0 ->
-                        "执行失败 · 退出码 ${result.exitCode} · 耗时 ${elapsedMs} 毫秒"
-                    else -> "执行成功 · 退出码 0 · 耗时 ${elapsedMs} 毫秒"
-                }
-                // 执行日志落盘（成功/失败/超时都保存，便于精确定位报错原因）；68 轮标注执行身份
-                val footer = ModuleLogs.line("──", when {
-                    !result.finished -> "结果：执行超时（${300_000 / 60000} 分钟无输出）\n排查提示：脚本可能等待 su 授权/输入、命令挂起，或执行了 start.sh 类脚本（会重启服务端）；完整输出见 exec_*.log"
-                    result.exitCode != null && result.exitCode != 0 ->
-                        "结果：失败（退出码 ${result.exitCode}）"
+                val outText = t.output.joinToString("\n") {
+                    if (it.isError) "[错误] ${it.text}" else it.text
+                }.trimEnd('\n')
+                val footer = ModuleLogs.line("──", when (state) {
+                    TaskState.TIMEOUT -> "结果：执行超时（5 分钟无输出）\n排查提示：脚本可能等待 su 授权/输入、命令挂起，或执行了 start.sh 类脚本（会重启服务端）；完整输出见 exec_*.log"
+                    TaskState.FAILED -> "结果：失败（退出码 ${code ?: "未知"}）"
+                    TaskState.STOPPED -> "结果：已手动停止"
                     else -> "结果：成功"
                 })
-                execLogContent = ModuleLogs.line("──", "执行: $title（身份: ${identity.label}）") + "\n" +
-                    execOutput.trimEnd('\n') + "\n" + footer
-                ModuleLogs.save(ctx, "exec_${(logTag ?: "cmd")}_${ModuleLogs.fileStamp()}.log", execLogContent)
+                val logContent = ModuleLogs.line("──", "执行: $title（身份: ${identity.label}）") + "\n" +
+                    outText + "\n" + footer
+                ModuleLogs.save(ctx, "exec_${(logTag ?: "cmd")}_${ModuleLogs.fileStamp()}.log", logContent)
                 DiagnosticLog.append(
-                    "[执行] $title（${identity.short}）: ${if (ok) "成功" else "失败/超时"}" +
-                        (result.exitCode?.let { "（退出码 $it）" } ?: "")
+                    "[执行] $title（${identity.short}）: ${when (state) {
+                        TaskState.FINISHED -> "成功"; TaskState.STOPPED -> "已停止"
+                        TaskState.TIMEOUT -> "超时"; else -> "失败/超时"
+                    }}${code?.let { "（退出码 $it）" } ?: ""}"
                 )
-                onDone?.invoke(execOutput, result.exitCode)
+                onDone?.invoke(outText, code)
             }
-        }
-    }
-
-    /** 把最近一次执行日志保存到用户可见目录（/storage/emulated/0/Lin-Shizuku/logs/，无权限时写应用私有目录）。 */
-    fun saveLastExecLog() {
-        if (execLogContent.isBlank()) return
-        val saved = ModuleLogs.saveToStorage(ctx, "exec_${ModuleLogs.fileStamp()}.log", execLogContent)
-        android.widget.Toast.makeText(ctx, "日志已保存: $saved", android.widget.Toast.LENGTH_LONG).show()
-    }
-
-    // 执行中实时计时：标题显示已运行秒数，让用户知道命令仍在正常推进
-    LaunchedEffect(execVisible, execDone) {
-        if (execVisible && !execDone) {
-            val start = System.currentTimeMillis()
-            while (execVisible && !execDone) {
-                kotlinx.coroutines.delay(1000)
-                // 写入前复查，避免覆盖「执行完毕」标题
-                if (execVisible && !execDone) {
-                    execTitle = "$execBaseTitle · ${(System.currentTimeMillis() - start) / 1000}s"
-                }
-            }
-        }
+        )
     }
 
     /** 开关型脚本 / 模块：执行 on/off 块并持久化状态。 */
@@ -283,9 +243,10 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
         scope.launch(Dispatchers.IO) {
             val block = ModuleStore.toggleBlock(ctx, id, on)
             withContext(Dispatchers.Main) {
-                runReal(
+                launchBackground(
                     "${if (on) "开启" else "关闭"}: $name",
                     if (block.isBlank()) "echo 脚本缺少 ${if (on) "#on" else "#off"} 块" else block,
+                    source = "脚本",
                     logTag = id
                 )
             }
@@ -359,9 +320,6 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
                         SegmentTab(Modifier.weight(1f), "推荐", tab == 2) { tab = 2; Prefs.modulesTab = 2 }
                         SegmentTab(Modifier.weight(1f), "日志", tab == 3) { tab = 3; Prefs.modulesTab = 3 }
                     }
-                    IconButton(onClick = { showQuickCmd = true }) {
-                        Icon(Icons.Filled.Terminal, "快速命令", tint = MaterialTheme.colorScheme.onSurface)
-                    }
                     IconButton(onClick = { showDoc = true }) {
                         Icon(Icons.Filled.Info, "格式与制作文档", tint = MaterialTheme.colorScheme.onSurface)
                     }
@@ -376,10 +334,18 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
                         onNew = { onEditScript(null) },
                         onImport = { importLauncher.launch(arrayOf("*/*")) },
                         onRun = { script ->
-                            val intent = Intent(ctx, OutputActivity::class.java)
-                            intent.putExtra("script_id", script.id)
-                            ctx.startActivity(intent)
-                            ActivityTransitions.overrideForward(ctx as android.app.Activity)
+                            // 方案 B：脚本后台登记执行，输出进终端页任务面板，不再弹独立输出页
+                            scope.launch(Dispatchers.IO) {
+                                val content = ModuleStore.scriptContent(ctx, script.id)
+                                withContext(Dispatchers.Main) {
+                                    launchBackground(
+                                        "运行: ${script.name}",
+                                        content,
+                                        source = "脚本",
+                                        logTag = script.id
+                                    )
+                                }
+                            }
                         },
                         onToggle = { script, on ->
                             runToggle(script.id, script.name, on)
@@ -406,13 +372,16 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
                         modules = linModules,
                         loading = loading,
                         onToggle = { m, on ->
-                            // Lin 模块开关 = 状态 + 引擎统一执行：
-                            // 终端 runReal 执行 #on 块 / stop.sh（展示过程），完成后真实输出回显到卡片
+                            // Lin 模块开关 = 状态 + 引擎统一执行：后台执行 #on 块 / stop.sh，
+                            // 输出进终端任务面板；完成后结果持久化并回显到卡片
                             ModuleStore.setEnabled(ctx, m.id, on)
                             scope.launch(Dispatchers.IO) {
                                 val uiScript = ModuleStore.moduleToggleScript(ctx, m.id, on)
                                 withContext(Dispatchers.Main) {
-                                    runReal(if (on) "开启: ${m.name}" else "关闭: ${m.name}", uiScript, logTag = m.id) { output, _ ->
+                                    launchBackground(
+                                        if (on) "开启: ${m.name}" else "关闭: ${m.name}",
+                                        uiScript, source = "模块", logTag = m.id
+                                    ) { output, _ ->
                                         ModuleStore.saveModuleResult(ctx, m.id, output)
                                         linModules = linModules.map {
                                             if (it.id == m.id) it.copy(
@@ -425,12 +394,12 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
                             }
                         },
                         onAction = { m ->
-                            // 运行按钮：终端执行 run.sh 全文（一次性模块），完成后真实输出回显到卡片
+                            // 运行按钮：后台执行 run.sh 全文（一次性模块），完成后结果回显到卡片
                             scope.launch(Dispatchers.IO) {
                                 val uiScript = ModuleStore.moduleActionScript(ctx, m.id)
                                     .ifBlank { "echo 模块缺少 run.sh / service.sh" }
                                 withContext(Dispatchers.Main) {
-                                    runReal("运行: ${m.name}", uiScript, logTag = m.id) { output, _ ->
+                                    launchBackground("运行: ${m.name}", uiScript, source = "模块", logTag = m.id) { output, _ ->
                                         ModuleStore.saveModuleResult(ctx, m.id, output)
                                         linModules = linModules.map {
                                             if (it.id == m.id) it.copy(
@@ -502,19 +471,6 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
             }
         }
 
-        if (execVisible) {
-            ExecutionOverlay(
-                title = execTitle,
-                output = execOutput,
-                done = execDone,
-                success = execSuccess,
-                onClose = { execVisible = false },
-                onSave = { saveLastExecLog() },
-                onCopy = { copyText(ctx, "命令输出", execOutput) },
-                onSaveAsScript = { if (lastExecCmd.isNotBlank()) onSaveAsScript(lastExecCmd) }
-            )
-        }
-
         if (installVisible) {
             // 66 轮：安装页（逐步日志 + 成功/失败状态 + 保存日志），失败时另弹「错误代码」对话框
             ExecutionOverlay(
@@ -526,18 +482,6 @@ fun ModulesScreen(onEditScript: (String?) -> Unit, onSaveAsScript: (String) -> U
                 onSave = { saveLastInstallLog() },
                 onCopy = { copyText(ctx, "安装日志", installLog) },
                 onSaveAsScript = {}
-            )
-        }
-
-        if (showQuickCmd) {
-            QuickCommandDialog(
-                onDismiss = { showQuickCmd = false },
-                onExecute = { cmd ->
-                    showQuickCmd = false
-                    // 标题只取命令首行（避免整段脚本塞进 24sp 标题导致疯狂折行）
-                    val head = cmd.lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: ""
-                    runReal(if (head.isEmpty()) "命令执行" else "命令执行：$head", cmd)
-                }
             )
         }
 
@@ -623,7 +567,9 @@ private fun ExecutionOverlay(
     onClose: () -> Unit,
     onSave: () -> Unit,
     onCopy: () -> Unit,
-    onSaveAsScript: () -> Unit
+    onSaveAsScript: () -> Unit,
+    onBackground: (() -> Unit)? = null,
+    onStop: (() -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
     // 输出 TextView 引用：点击弹窗任意位置时折叠文本选中，关闭系统选择工具条
@@ -686,6 +632,16 @@ private fun ExecutionOverlay(
                     }
                 }
                 if (!done) {
+                    onBackground?.let { bg ->
+                        IconButton(onClick = bg) {
+                            Icon(Icons.Filled.ArrowDownward, "后台运行", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    onStop?.let { st ->
+                        IconButton(onClick = st) {
+                            Icon(Icons.Filled.Stop, "停止运行", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
                     IconButton(onClick = onClose) {
                         Icon(Icons.Filled.Close, "关闭", tint = MaterialTheme.colorScheme.onBackground)
                     }
@@ -970,43 +926,6 @@ private fun collapseTextSelection(tv: TextView) {
 }
 
 @Composable
-private fun QuickCommandDialog(
-    onDismiss: () -> Unit,
-    onExecute: (String) -> Unit
-) {
-    var cmd by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("命令执行", fontWeight = FontWeight.SemiBold) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = cmd,
-                    onValueChange = { cmd = it },
-                    label = { Text("输入命令") },
-                    placeholder = { Text("通过 Shizuku 以 shell 权限执行") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                    maxLines = 6
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { if (cmd.isNotBlank()) onExecute(cmd) }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("执行")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        }
-    )
-}
-
-@Composable
 private fun LinModulesTab(
     modules: List<LinModuleItem>,
     loading: Boolean,
@@ -1022,20 +941,20 @@ private fun LinModulesTab(
             EmptyState(
                 title = "加载中...",
                 subtitle = "",
-                modifier = Modifier.padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                modifier = Modifier.padding(bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
             )
         } else if (modules.isEmpty()) {
             EmptyState(
                 title = "暂无 Lin 模块",
                 subtitle = "点击右下角安装模块（.lin / .zip 包）",
-                modifier = Modifier.padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                modifier = Modifier.padding(bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
             )
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(modules, key = { it.id }) { module ->
@@ -1055,7 +974,7 @@ private fun LinModulesTab(
             onClick = onInstall,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 88.dp),
+                .padding(end = 16.dp, bottom = 100.dp),
             icon = { Icon(Icons.Filled.Add, null) },
             text = { Text("安装模块") }
         )
@@ -1719,7 +1638,7 @@ private fun RecommendedTab(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // 应用激活专区：检测到对应应用安装才显示按钮；全部未安装则整块隐藏
@@ -2125,13 +2044,13 @@ private fun ScriptsTab(
             EmptyState(
                 title = "加载中...",
                 subtitle = "",
-                modifier = Modifier.padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                modifier = Modifier.padding(bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
             )
         } else if (scripts.isEmpty()) {
             EmptyState(
                 title = "暂无 Shell 脚本",
                 subtitle = "点击右下角按钮创建新脚本",
-                modifier = Modifier.padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                modifier = Modifier.padding(bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
             )
         } else {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -2156,7 +2075,7 @@ private fun ScriptsTab(
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 16.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(filtered, key = { it.id }) { script ->
@@ -2177,7 +2096,7 @@ private fun ScriptsTab(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 88.dp),
+                .padding(end = 16.dp, bottom = 100.dp),
             horizontalAlignment = Alignment.End
         ) {
             FloatingActionButton(

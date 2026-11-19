@@ -227,7 +227,7 @@ fun SettingsScreen(onOpenBattery: () -> Unit = {}, onOpenApps: () -> Unit = {}) 
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .padding(bottom = 72.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
         ) {
             // === 权限与身份 ===
             SectionHeader("权限与身份")

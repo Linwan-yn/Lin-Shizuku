@@ -182,7 +182,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                .padding(bottom = 72.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 

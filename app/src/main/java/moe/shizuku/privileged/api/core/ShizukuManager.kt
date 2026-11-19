@@ -413,7 +413,8 @@ object ShizukuManager {
         cmd: String,
         identity: ExecIdentity = ExecIdentity.AUTO,
         onLine: suspend (String, Boolean) -> Unit,
-        timeoutMs: Long = 30_000
+        timeoutMs: Long = 30_000,
+        task: CommandTask? = null
     ): StreamResult = withContext(Dispatchers.IO) {
         val final = wrapForIdentity(cmd, identity)
         if (final == null) {
@@ -424,7 +425,7 @@ object ShizukuManager {
         if (isLinServerRunning()) {
             try {
                 val proc = lin.Lin.newProcess(arrayOf("sh", "-c", final), null, null)
-                return@withContext streamProcess(proc, onLine, timeoutMs)
+                return@withContext streamProcess(proc, onLine, timeoutMs, task)
             } catch (_: Throwable) {}
         }
         // Shizuku 兼容通道
@@ -433,7 +434,7 @@ object ShizukuManager {
             if (service != null && Shizuku.pingBinder()) {
                 val remote = service.newProcess(arrayOf("sh", "-c", final), null, null)
                 if (remote != null) {
-                    return@withContext streamRemote(remote, onLine, timeoutMs)
+                    return@withContext streamRemote(remote, onLine, timeoutMs, task)
                 }
             }
         } catch (_: Throwable) {}
@@ -443,9 +444,11 @@ object ShizukuManager {
     private suspend fun streamRemote(
         remote: IRemoteProcess,
         onLine: suspend (String, Boolean) -> Unit,
-        timeoutMs: Long
+        timeoutMs: Long,
+        task: CommandTask? = null
     ): StreamResult = coroutineScope {
         lastRemoteProcess = remote
+        task?.attach(remote, null)
         val lastOutput = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
         val outJob = launch { streamLines(ParcelFileDescriptor.AutoCloseInputStream(remote.inputStream), false, onLine, lastOutput) }
         val errJob = launch { streamLines(ParcelFileDescriptor.AutoCloseInputStream(remote.errorStream), true, onLine, lastOutput) }
@@ -466,8 +469,10 @@ object ShizukuManager {
     private suspend fun streamProcess(
         proc: Process,
         onLine: suspend (String, Boolean) -> Unit,
-        timeoutMs: Long
+        timeoutMs: Long,
+        task: CommandTask? = null
     ): StreamResult = coroutineScope {
+        task?.attach(null, proc)
         val lastOutput = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
         val outJob = launch { streamLines(proc.inputStream, false, onLine, lastOutput) }
         val errJob = launch { streamLines(proc.errorStream, true, onLine, lastOutput) }

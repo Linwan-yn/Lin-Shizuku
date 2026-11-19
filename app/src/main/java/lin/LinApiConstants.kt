@@ -14,14 +14,43 @@ object LinApiConstants {
     const val ACTION_FOLLOW_STARTUP = "lin.intent.action.FOLLOW_STELLAR_STARTUP"
     const val PERMISSION_LIN = "lin"
     const val PERMISSION_FOLLOW_STARTUP = "follow_lin_startup"
+    const val PERMISSION_SHIZUKU = "shizuku"
 
     val PERMISSIONS = arrayOf(
         PERMISSION_LIN,
         PERMISSION_FOLLOW_STARTUP
     )
 
+    /** 标准 Shizuku SDK 注册时声明的 API 权限名（新版 V23 / 旧版 V22 / 经典 API）。 */
+    val SHIZUKU_API_PERMISSIONS = setOf(
+        "moe.shizuku.manager.permission.API_V23",
+        "moe.shizuku.manager.permission.API_V22",
+        "moe.shizuku.manager.permission.API"
+    )
+
+    /** 服务端认可的全部权限名：Lin 自有 + Shizuku 兼容 + 标准 API 名 + 运行时权限。 */
+    fun isRecognizedPermission(permission: String?): Boolean {
+        if (permission == null) return false
+        if (PERMISSIONS.contains(permission)) return true
+        if (permission == PERMISSION_SHIZUKU) return true
+        if (SHIZUKU_API_PERMISSIONS.contains(permission)) return true
+        return isRuntimePermission(permission)
+    }
+
+    /**
+     * 归一化存储键：标准 API_V23/API_V22/API 与 "shizuku" 统一落到 "shizuku" 键，
+     * 其余权限名原样返回。Shizuku 兼容应用无论用哪种权限名请求/回读，都读写同一权限位。
+     */
+    fun normalizePermissionKey(permission: String?): String {
+        if (permission == null) return PERMISSION_LIN
+        if (permission == PERMISSION_SHIZUKU || SHIZUKU_API_PERMISSIONS.contains(permission)) {
+            return PERMISSION_SHIZUKU
+        }
+        return permission
+    }
+
     fun isRuntimePermission(permission: String): Boolean =
-        permission == PERMISSION_LIN || permission == "shizuku" || permission.endsWith(":runtime")
+        permission == PERMISSION_LIN || permission == PERMISSION_SHIZUKU || permission.endsWith(":runtime")
 
     const val BINDER_DESCRIPTOR = "com.lin.server.ILinService"
     const val BINDER_TRANSACTION_transact = 1

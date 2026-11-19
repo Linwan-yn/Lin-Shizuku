@@ -84,7 +84,7 @@ object ModuleStore {
      *   文件对用户可见、便于管理/备份）。
      * 兼容读链：外部自有目录 → 内部 filesDir/lin-scripts（90ad 曾保存） → 老路径
      *   /data/local/tmp/Lin-Shizuku/script（1.0.1~1.0.7 历史版本）。
-     * 执行侧不受影响：OutputActivity 等均「读内容→内联执行」，不依赖脚本文件路径。
+     * 执行侧不受影响：模块页 / 终端页均「读内容→内联后台执行」，不依赖脚本文件路径。
      */
     private fun scriptStoreDir(ctx: Context): File {
         // getExternalFilesDir 为 /storage/emulated/0/Android/data/<pkg>/files
@@ -1044,7 +1044,7 @@ object ModuleStore {
         return summary
     }
 
-    /** 模块开关 UI 要真实执行的脚本：#on 块（开）；[stopScript] 完整停止序列（关）。供终端 runReal 展示执行。 */
+    /** 模块开关 UI 要真实执行的脚本：#on 块（开）；[stopScript] 完整停止序列（关）。后台登记到终端任务面板执行。 */
     fun moduleToggleScript(ctx: Context, id: String, on: Boolean): String {
         return if (on) {
             // 90s：独立取原始全文提取 #on 块（moduleActionScript 已带 cd 前缀，不能直接用于块提取），

@@ -3,6 +3,9 @@ package moe.shizuku.privileged.api.core
 import android.content.Context
 import android.content.SharedPreferences
 
+/** 终端历史条目：命令 + 可选备注名（备注为空时只显示命令）。 */
+data class TerminalHistoryEntry(val cmd: String, val note: String = "")
+
 object Prefs {
     private const val FILE = "lin_shizuku_prefs"
     private lateinit var sp: SharedPreferences
@@ -242,22 +245,26 @@ object Prefs {
         get() = sp.getBoolean("haptic_enabled", true)
         set(v) = sp.edit().putBoolean("haptic_enabled", v).apply()
 
-    /** 终端输入模式：0=超长自动换行（多行输入），1=单行横向滚动跟随光标。 */
-    var terminalInputMode: Int
-        get() = sp.getInt("terminal_input_mode", 0)
-        set(v) = sp.edit().putInt("terminal_input_mode", v).apply()
-
-    /** 终端执行模式：0=排队（上一条执行完自动执行下一条），1=并发（立即另起执行），2=阻止（提示等待）。 */
-    var terminalExecMode: Int
-        get() = sp.getInt("terminal_exec_mode", 0)
-        set(v) = sp.edit().putInt("terminal_exec_mode", v).apply()
-
-    /** 终端历史命令：持久化、最新在前、去重、上限 50 条；点按回填输入框，可单条删除。 */
-    var terminalHistory: List<String>
-        get() = try {
+    /** 终端历史命令：持久化、最新在前、按命令去重、上限 50 条；点按回填输入框，可删、可加备注。 */
+    var terminalHistory: List<TerminalHistoryEntry>
+        get() {
             val raw = sp.getString("terminal_history", "[]") ?: "[]"
-            com.google.gson.Gson().fromJson(raw, Array<String>::class.java)?.toList() ?: emptyList()
-        } catch (_: Throwable) { emptyList() }
+            val gson = com.google.gson.Gson()
+            // 新格式：对象数组 [{cmd, note}]
+            try {
+                val entries = gson.fromJson(raw, Array<TerminalHistoryEntry>::class.java)
+                if (entries != null && entries.all { !it.cmd.isNullOrBlank() }) {
+                    return entries.filter { it.cmd.isNotBlank() }.toList()
+                }
+            } catch (_: Throwable) { /* 落到旧格式解析 */ }
+            // 旧格式：纯字符串数组 ["adb", ...]，迁移为无备注条目
+            return try {
+                gson.fromJson(raw, Array<String>::class.java)
+                    ?.filter { !it.isNullOrBlank() }
+                    ?.map { TerminalHistoryEntry(it, "") }
+                    ?: emptyList()
+            } catch (_: Throwable) { emptyList() }
+        }
         set(v) = sp.edit().putString(
             "terminal_history",
             com.google.gson.Gson().toJson(v.take(MAX_TERMINAL_HISTORY))

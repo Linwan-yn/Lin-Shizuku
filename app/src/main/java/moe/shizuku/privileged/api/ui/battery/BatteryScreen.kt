@@ -52,6 +52,7 @@ fun BatteryScreen() {
             .navigationBarsPadding()
             .padding(horizontal = 16.dp)
             .padding(top = 16.dp)
+            .padding(bottom = 72.dp)
     ) {
         // 89 轮：电池页标题玻璃条（跟随设置页五档材质）
         GlassPanel(

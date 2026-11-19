@@ -3,6 +3,7 @@ package lin.server
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.DeadObjectException
 import android.os.IBinder
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -92,7 +93,15 @@ class ConfigManager {
                             ?.split(",")
                             ?.map { it.trim() }
                             ?.any { PERMISSIONS.contains(it) } != true &&
-                            !ProviderDiscovery.hasLinProvider(pi)
+                            !ProviderDiscovery.hasLinProvider(pi) &&
+                            // 纯 Shizuku 兼容应用（声明 V3_SUPPORT meta 或携带 .shizuku Provider）
+                            // 同样需要建立配置条目，否则启动全量补发与历史授权回读会漏掉它们。
+                            !(
+                                pi.applicationInfo!!.metaData?.getBoolean(
+                                    ShizukuApiConstants.META_DATA_KEY, false
+                                ) == true ||
+                                    ProviderDiscovery.hasShizukuProvider(pi)
+                            )
                     ) ||
                     pi.packageName == ServerConstants.MANAGER_APPLICATION_ID
                 ) {
@@ -243,6 +252,20 @@ class ConfigManager {
                 }
             }
 
+            // Shizuku 兼容应用：同时登记 "shizuku" 权限键，否则新建条目只有 lin 键，
+            // 兼容通道按 shizuku 键查权限会一直落到「询问」。
+            val packageInfo = PackageManagerCompat.getPackageInfo(
+                packageName,
+                (PackageManager.GET_META_DATA or PackageManager.GET_PROVIDERS).toLong(),
+                userId
+            )
+            val isShizukuCompat =
+                applicationInfo.metaData?.getBoolean(ShizukuApiConstants.META_DATA_KEY, false) == true ||
+                    packageInfo?.let { ProviderDiscovery.hasShizukuProvider(it) } == true
+            if (isShizukuCompat) {
+                declaredPermissions.add(ShizukuApiConstants.PERMISSION_NAME)
+            }
+
             LOGGER.i("应用 %s 声明的权限: %s", packageName, declaredPermissions.toString())
 
             val entry = PackageEntry()
@@ -375,6 +398,14 @@ class ConfigManager {
     companion object {
         private val LOGGER: Logger = Logger("ConfigManager")
 
+        /** 管理器死亡/未就绪、代理为空、Binder 失效、凭据存储未解锁等窗口期瞬态异常。 */
+        private fun isTransientProxyError(tr: Throwable): Boolean = when (tr) {
+            is NullPointerException,
+            is DeadObjectException,
+            is IllegalStateException -> true
+            else -> false
+        }
+
         const val FLAG_ASK: Int = 0
         const val FLAG_GRANTED: Int = 1
         const val FLAG_DENIED: Int = 2
@@ -397,9 +428,18 @@ class ConfigManager {
                 if (p.asBinder().isBinderAlive) return p
                 cachedProvider = null
             }
-            val p = ActivityManagerApis.getContentProviderExternal(MANAGER_PROVIDER, 0, null, MANAGER_PROVIDER)
-            cachedProvider = p
-            return p
+            return try {
+                val p = ActivityManagerApis.getContentProviderExternal(MANAGER_PROVIDER, 0, null, MANAGER_PROVIDER)
+                cachedProvider = p
+                p
+            } catch (tr: Throwable) {
+                // 管理器进程死亡/尚未就绪时，AMS 代理或 Provider 为 null 会抛 NPE/DeadObject，
+                // 属预期窗口期瞬态：清掉缓存、返回 null 走上层重试/默认值兜底，不再让堆栈上炸。
+                cachedProvider = null
+                LOGGER.w("获取 manager Provider 暂不可用（%s: %s），稍后重试",
+                    tr.javaClass.simpleName, tr.message)
+                null
+            }
         }
 
         private fun callProvider(method: String, extras: Bundle?): Bundle? {
@@ -407,13 +447,23 @@ class ConfigManager {
             return try {
                 IContentProviderUtils.callCompat(provider, null, MANAGER_PROVIDER, method, null, extras ?: Bundle())
             } catch (tr: Throwable) {
-                LOGGER.w(tr, "ContentProvider 调用失败，重试一次: %s", method)
+                if (isTransientProxyError(tr)) {
+                    LOGGER.w("ContentProvider 暂不可用（%s: %s），重试一次: %s",
+                        tr.javaClass.simpleName, tr.message, method)
+                } else {
+                    LOGGER.w(tr, "ContentProvider 调用失败，重试一次: %s", method)
+                }
                 cachedProvider = null
                 provider = obtainProvider() ?: return null
                 try {
                     IContentProviderUtils.callCompat(provider, null, MANAGER_PROVIDER, method, null, extras ?: Bundle())
                 } catch (tr2: Throwable) {
-                    LOGGER.e(tr2, "ContentProvider 重试仍失败: %s", method)
+                    if (isTransientProxyError(tr2)) {
+                        LOGGER.w("ContentProvider 重试仍不可用（%s: %s）: %s",
+                            tr2.javaClass.simpleName, tr2.message, method)
+                    } else {
+                        LOGGER.e(tr2, "ContentProvider 重试仍失败: %s", method)
+                    }
                     null
                 }
             }
@@ -437,7 +487,12 @@ class ConfigManager {
                     }
                     LOGGER.w("从 manager 加载配置返回 null（manager 可能未就绪），第 %d 次", attempt + 1)
                 } catch (tr: Throwable) {
-                    LOGGER.w(tr, "从 manager 加载配置失败（第 %d 次）", attempt + 1)
+                    if (isTransientProxyError(tr)) {
+                        LOGGER.w("从 manager 加载配置暂不可用（%s: %s），第 %d 次",
+                            tr.javaClass.simpleName, tr.message, attempt + 1)
+                    } else {
+                        LOGGER.w(tr, "从 manager 加载配置失败（第 %d 次）", attempt + 1)
+                    }
                 }
                 if (attempt < 2) {
                     try {

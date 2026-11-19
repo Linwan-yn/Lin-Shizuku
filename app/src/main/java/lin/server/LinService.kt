@@ -211,7 +211,7 @@ class LinService : ILinService.Stub() {
             LinApiConstants.REQUEST_PERMISSION_REPLY_PERMISSION,
             LinApiConstants.PERMISSION_LIN
         )
-        if (permission == ShizukuApiConstants.PERMISSION_NAME) {
+        if (LinApiConstants.normalizePermissionKey(permission) == ShizukuApiConstants.PERMISSION_NAME) {
             val allowed = data.getBoolean(LinApiConstants.REQUEST_PERMISSION_REPLY_ALLOWED, false)
             val onetime = data.getBoolean(LinApiConstants.REQUEST_PERMISSION_REPLY_IS_ONETIME, false)
 
@@ -261,7 +261,7 @@ class LinService : ILinService.Stub() {
     }
 
     override fun getFlagForUid(uid: Int, permission: String): Int {
-        if (permission == ShizukuApiConstants.PERMISSION_NAME) {
+        if (LinApiConstants.normalizePermissionKey(permission) == ShizukuApiConstants.PERMISSION_NAME) {
             val linFlag = configManager.getPermissionFlag(uid, ShizukuApiConstants.PERMISSION_NAME)
             return ShizukuApiConstants.linToShizukuFlag(linFlag)
         }
@@ -278,10 +278,15 @@ class LinService : ILinService.Stub() {
     }
 
     override fun updateFlagForUid(uid: Int, permission: String, flag: Int) {
-        if (permission == ShizukuApiConstants.PERMISSION_NAME) {
+        if (LinApiConstants.normalizePermissionKey(permission) == ShizukuApiConstants.PERMISSION_NAME) {
             val linFlag = ShizukuApiConstants.shizukuToLinFlag(flag)
             configManager.updatePermission(uid, ShizukuApiConstants.PERMISSION_NAME, linFlag)
-            clientManager.findClients(uid).forEach { it.onetimeMap.remove(ShizukuApiConstants.PERMISSION_NAME) }
+            // 同步刷新已挂客户端的内存权限位，避免旧记录缓存拒绝态
+            val granted = linFlag == ConfigManager.FLAG_GRANTED
+            clientManager.findClients(uid).forEach {
+                it.onetimeMap.remove(ShizukuApiConstants.PERMISSION_NAME)
+                it.allowedMap[ShizukuApiConstants.PERMISSION_NAME] = granted
+            }
             // 授权变更后立即补发 Binder：授权为「允许/询问」的应用若进程已在运行
             // （早于服务启动或早于授权），无需重启进程即可收到 Shizuku Binder 并生效
             if (linFlag == ConfigManager.FLAG_GRANTED || linFlag == ConfigManager.FLAG_ASK) {

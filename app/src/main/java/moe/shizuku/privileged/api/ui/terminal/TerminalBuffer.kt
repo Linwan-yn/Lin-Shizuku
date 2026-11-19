@@ -10,8 +10,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import moe.shizuku.privileged.api.core.TaskState
 
 data class TerminalLine(val text: String, val isError: Boolean = false)
+
+/** 最近一次执行结果：供结果状态条展示（状态 / 退出码 / 耗时 / 命令）。 */
+data class ExecResult(
+    val status: TaskState,
+    val exitCode: Int?,
+    val elapsedMs: Long,
+    val cmd: String
+)
 
 /**
  * 终端全局缓冲：内容与执行状态保存在进程级单例中，
@@ -31,6 +40,12 @@ object TerminalBuffer {
     /** 是否有命令正在执行（跨页面保留）。 */
     var running by mutableStateOf(false)
 
+    /** 当前在前台执行的后台任务 id（1.1.5），供「后台运行 / 停止运行」定位。 */
+    var currentTaskId: Long? = null
+
+    /** 最近一次执行结果；运行中为 null，完成后写入结果状态条。 */
+    var lastResult by mutableStateOf<ExecResult?>(null)
+
     /** 停止回调：由执行侧注册，点停止按钮时调用，destroy 当前进程。 */
     var onStop: (() -> Unit)? = null
 
@@ -42,12 +57,6 @@ object TerminalBuffer {
 
     /** 快照同步任务（节流防抖：高频 append 期间只启动一个）。 */
     private var syncJob: Job? = null
-
-    init {
-        // 初始提示两行：数据源与 UI 快照同步写入
-        appendLine("Lin-Shizuku — 终端")
-        appendLine("输入命令回车执行（sh / root 权限）。")
-    }
 
     fun appendLine(text: String, isError: Boolean = false) {
         synchronized(backing) {

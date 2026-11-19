@@ -312,7 +312,7 @@ fun AppsScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                    .padding(bottom = 72.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -339,13 +339,13 @@ fun AppsScreen() {
                 subtitle = if (!serviceRunning) "请先启动 Shizuku 服务"
                            else if (searchQuery.isNotBlank()) "换个关键词试试"
                            else "白名单中的应用将豁免深度省电限制",
-                modifier = Modifier.padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                modifier = Modifier.padding(bottom = 72.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
             )
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 // 90 轮：底部留白 80→120dp，避免末项应用条目被悬浮底部导航遮挡
-                contentPadding = PaddingValues(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                contentPadding = PaddingValues(bottom = 72.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(filtered, key = { "${it.packageName}_${it.uid}" }) { app ->

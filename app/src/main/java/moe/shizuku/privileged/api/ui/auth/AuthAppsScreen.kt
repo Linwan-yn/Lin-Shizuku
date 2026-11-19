@@ -269,11 +269,11 @@ fun AuthAppsScreen() {
             EmptyState(
                 title = "暂无匹配的应用",
                 subtitle = "尝试调整筛选或搜索条件，或在应用中请求 Shizuku 权限",
-                modifier = Modifier.padding(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                modifier = Modifier.padding(bottom = 72.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
             )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 48.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                contentPadding = PaddingValues(bottom = 72.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // 88 轮：key 唯一化（包名+uid）——双开/多用户下同一包名可能多行，纯包名 key 会触发

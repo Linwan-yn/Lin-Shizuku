@@ -37,8 +37,8 @@ android {
         // 1.1.1（1.0.3 服务端 API）：保活根治——开关自愈闭环/进程级兜底/守护可观测/服务端死亡事件上报/精确闹钟心跳
         // 1.1.5：消除悬浮底栏周围露纯色背景——去掉第5档容器层重复避让、收窄模块列表尾部留白；第5档深浅判断对齐 App 主题
         // 1.1.6：各页底部避让统一收窄到 48dp，卡片延伸进底栏后方；录制层底部端色贴近卡片面板底色，弱化避让区色差
-        versionCode = 20261115
-        versionName = "1.1.4-lin-Release"
+        versionCode = 20261119
+        versionName = "1.1.5-lin-Release"
         // 体积优化：仅保留 64 位 ABI（现代设备均为 arm64），只保留简体中文资源
         ndk {
             abiFilters += listOf("arm64-v8a")
@@ -52,7 +52,7 @@ android {
     signingConfigs {
         create("release") {
             // 签名配置从 local.properties 读取（Android 构建标配，不入库）。
-            // 仓库内不附带私钥与口令；release 签名所需 keystore.path / storePassword /
+            // 包内不附带私钥与口令；release 签名所需 keystore.path / storePassword /
             // keyAlias / keyPassword 均在本机 local.properties 中填写，脚本不保留明文回退值。
             // 外部克隆后请使用自己的 keystore，或直接构建 debug 变体。
             val lp = Properties().apply {

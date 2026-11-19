@@ -3,6 +3,7 @@ package lin.server.binder
 import android.content.IContentProvider
 import android.os.Binder
 import android.os.Bundle
+import android.os.DeadObjectException
 import android.os.IBinder
 import android.os.Parcelable
 import com.lin.api.BinderContainer
@@ -16,6 +17,18 @@ import lin.server.util.Logger
 
 object BinderDistributor {
     private val LOGGER = Logger("BinderDistributor")
+
+    /**
+     * 管理器进程死亡/尚未就绪、系统服务代理为空时的瞬态异常：
+     * 代理空指针、Binder 已失效、凭据存储未解锁。这类属启动/死亡窗口预期情况，
+     * 降级为单行 W 日志，不打印整段堆栈；其余未预期错误仍按 E 级附堆栈上报。
+     */
+    private fun isTransientProxyError(tr: Throwable): Boolean = when (tr) {
+        is NullPointerException,
+        is DeadObjectException,
+        is IllegalStateException -> true
+        else -> false
+    }
 
     fun sendBinderToManager(binder: Binder?) {
         sendBinderToManager(binder, 0)
@@ -103,7 +116,11 @@ object BinderDistributor {
             )
             LOGGER.v("已将用户 %d 的 %s 加入省电临时白名单 30 秒", userId, packageName)
         } catch (tr: Throwable) {
-            LOGGER.e(tr, "将用户 %d 的 %s 加入省电临时白名单失败", userId, packageName)
+            if (isTransientProxyError(tr)) {
+                LOGGER.w("加入省电临时白名单暂不可用（%s: %s）: %s", tr.javaClass.simpleName, tr.message, packageName)
+            } else {
+                LOGGER.e(tr, "将用户 %d 的 %s 加入省电临时白名单失败", userId, packageName)
+            }
         }
 
         val name = "$packageName$providerSuffix"
@@ -143,7 +160,11 @@ object BinderDistributor {
             }
             return false
         } catch (tr: Throwable) {
-            LOGGER.e(tr, "向用户 %d 的应用 %s 发送 %sBinder 失败", userId, packageName, logPrefix)
+            if (isTransientProxyError(tr)) {
+                LOGGER.w("发送 %sBinder 暂不可用（%s: %s）: %s", logPrefix, tr.javaClass.simpleName, tr.message, packageName)
+            } else {
+                LOGGER.e(tr, "向用户 %d 的应用 %s 发送 %sBinder 失败", userId, packageName, logPrefix)
+            }
             return false
         } finally {
             if (provider != null) {

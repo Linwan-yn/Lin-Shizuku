@@ -108,11 +108,6 @@
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
 
-        <activity
-            android:name=".ui.modules.OutputActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|navigation" />
-
         <!-- 模块/脚本日志查看页（66 轮：安装与执行日志查看、保存、删除） -->
         <activity
             android:name=".ui.modules.ModuleLogActivity"

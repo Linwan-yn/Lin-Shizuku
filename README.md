@@ -18,6 +18,7 @@
 ## 下载与安装
 | 版本 | 发布日期 | 下载 |
 | --- | --- | --- |
+| v1.1.5 | 2026-11-19 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.5) |
 | v1.1.4 | 2026-11-14 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.4) |
 | v1.1.3 | 2026-11-09 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.3) |
 | v1.1.2 | 2026-11-05 | [下载](https://github.com/Linwan-yn/Lin-Shizuku/releases/tag/v1.1.2) |
@@ -44,7 +45,7 @@
 ## 源码与构建
 - 源代码托管在 `main` 分支，可直接克隆；构建步骤见 [BUILD.md](BUILD.md)
 - 详细版本记录见 [CHANGELOG.md](CHANGELOG.md)
-- **推荐安装最新版本**（v1.1.4）以获得最佳体验
+- **推荐安装最新版本**（v1.1.5）以获得最佳体验
 
 ### 说明
 - 部分实验性功能仍在完善中；个别定制 ROM（如 MIUI / HyperOS）可能需要额外权限配置

@@ -31,7 +31,8 @@ class PermissionManager(
     fun shouldShowRequestPermissionRationale(uid: Int): Boolean =
         checker.shouldShowRequestPermissionRationale(uid)
 
-    fun getSupportedPermissions(): Array<String> = LinApiConstants.PERMISSIONS
+    fun getSupportedPermissions(): Array<String> =
+        arrayOf(LinApiConstants.PERMISSION_LIN, LinApiConstants.PERMISSION_SHIZUKU)
 
     fun dispatchPermissionResult(
         requestUid: Int,
@@ -42,23 +43,24 @@ class PermissionManager(
 
     fun getFlagForUid(uid: Int, permission: String): Int =
         // 90bp：无锁只读缓存（getPermissionFlag）——Shizuku 生态高频 getFlagsForUid 不再阻塞配置锁
-        configManager.getPermissionFlag(uid, permission)
+        configManager.getPermissionFlag(uid, LinApiConstants.normalizePermissionKey(permission))
 
     fun updateFlagForUid(uid: Int, permission: String, newFlag: Int) {
+        val key = LinApiConstants.normalizePermissionKey(permission)
         for (record in clientManager.findClients(uid)) {
-            val shouldStopApp = LinApiConstants.isRuntimePermission(permission) &&
-                    record.allowedMap[permission] == true &&
+            val shouldStopApp = LinApiConstants.isRuntimePermission(key) &&
+                    record.allowedMap[key] == true &&
                     newFlag != ConfigManager.FLAG_GRANTED
 
             if (shouldStopApp) {
                 ActivityManagerApis.forceStopPackageNoThrow(record.packageName, getUserId(uid))
             }
 
-            record.allowedMap[permission] = newFlag == ConfigManager.FLAG_GRANTED
-            record.onetimeMap[permission] = false
+            record.allowedMap[key] = newFlag == ConfigManager.FLAG_GRANTED
+            record.onetimeMap[key] = false
         }
 
-        configManager.updatePermission(uid, permission, newFlag)
+        configManager.updatePermission(uid, key, newFlag)
     }
 
     fun grantRuntimePermission(packageName: String, permissionName: String, userId: Int) {
